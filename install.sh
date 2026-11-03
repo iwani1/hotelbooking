@@ -66,11 +66,21 @@ if [ ! -d "$PLUGIN_DIR" ]; then
     exit 1
 fi
 
+# --- The WordPress container owns wp-content (www-data), so file operations
+#     there may need elevated permissions. Use sudo when not root, then hand
+#     ownership back to the host user so you can edit the files. ---
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    SUDO="sudo"
+fi
+ORIG_USER="${SUDO_USER:-$(id -un)}"
+
 echo "==> Installing theme + plugin into wp-content"
-mkdir -p "$WP_CONTENT/themes" "$WP_CONTENT/plugins"
-rm -rf "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
-cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
-cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
+$SUDO mkdir -p "$WP_CONTENT/themes" "$WP_CONTENT/plugins"
+$SUDO rm -rf "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
+$SUDO cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
+$SUDO cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
+$SUDO chown -R "$ORIG_USER:$ORIG_USER" "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
 rm -rf "$EXTRACT"
 
 # --- Wait for the database to be ready ---
@@ -118,3 +128,6 @@ echo "  1. Appearance > Theme License: enter your Lemon Squeezy API key, click"
 echo "     'Save API Key', then enter your license key and click 'Activate License'."
 echo "  2. Appearance > Import Demo Data (One Click Demo Import) to load demo content."
 echo "  3. Install Directorist manually if you need the directory/classified listings."
+echo ""
+echo "Note: theme/plugin files were copied with sudo and chowned back to $ORIG_USER."
+echo "      (The container's www-data user can read them; use sudo to edit if needed.)"
