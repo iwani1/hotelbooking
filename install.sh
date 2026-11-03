@@ -159,26 +159,45 @@ fi
 # --- Install required plugins ---
 echo "==> Installing required plugins from wordpress.org"
 # Directorist is a premium plugin (not on wordpress.org) — install it manually.
-# Install all without --activate, then activate WooCommerce first.
-# Activating WooCommerce while Elementor is active crashes with
-# "Call to a member function add_feature() on null" — WooCommerce's CLI
-# runner fires rest_api_init during activation, and Elementor's module
-# manager isn't initialized in CLI context at that point.
 wp plugin install \
     elementor woocommerce contact-form-7 one-click-demo-import mailchimp-for-wp
+
+# Deactivate Elementor if active — activating WooCommerce while Elementor is
+# active crashes with "Call to a member function add_feature() on null" because
+# WooCommerce's CLI runner fires rest_api_init during activation, and Elementor's
+# module manager isn't initialized in CLI context at that point.
+wp plugin deactivate elementor 2>/dev/null || true
 
 echo "==> Activating WooCommerce"
 wp plugin activate woocommerce
 
-echo "==> Activating remaining plugins"
-wp plugin activate elementor
-wp plugin activate contact-form-7
-wp plugin activate one-click-demo-import
-wp plugin activate mailchimp-for-wp
+# Try to activate Elementor via WP-CLI (runs activation hooks). If it crashes
+# (same WooCommerce/Elementor CLI issue), fall back to direct database activation
+# for all remaining plugins and the theme.
+WP_CLI_OK=0
+if wp plugin activate elementor 2>/dev/null; then
+    WP_CLI_OK=1
+    echo "==> Activating remaining plugins via WP-CLI"
+    wp plugin activate contact-form-7 2>/dev/null || true
+    wp plugin activate one-click-demo-import 2>/dev/null || true
+    wp plugin activate mailchimp-for-wp 2>/dev/null || true
+else
+    echo "==> WP-CLI crashes with both WooCommerce and Elementor active"
+    echo "==> Activating remaining plugins via database"
+    SERIALIZED=$("${COMPOSE[@]}" exec -T web php -r 'echo serialize(["woocommerce/woocommerce.php","elementor/elementor.php","contact-form-7/contact-form-7.php","one-click-demo-import/one-click-demo-import.php","mailchimp-for-wp/mailchimp-for-wp.php"]);' 2>/dev/null)
+    "${COMPOSE[@]}" exec db mysql -ubookora -pbookora bookora -e "UPDATE wp_options SET option_value='$SERIALIZED' WHERE option_name='active_plugins'"
+fi
 
 # --- Activate the theme ---
 echo "==> Activating theme"
-wp theme activate bookora
+if [ "$WP_CLI_OK" = "1" ]; then
+    if ! wp theme activate bookora 2>/dev/null; then
+        echo "Theme activation via WP-CLI failed — using database"
+        "${COMPOSE[@]}" exec db mysql -ubookora -pbookora bookora -e "UPDATE wp_options SET option_value='bookora' WHERE option_name IN ('template','stylesheet')"
+    fi
+else
+    "${COMPOSE[@]}" exec db mysql -ubookora -pbookora bookora -e "UPDATE wp_options SET option_value='bookora' WHERE option_name IN ('template','stylesheet')"
+fi
 
 # --- Clean up and hand wp-content to the web server user (www-data) ---
 echo "==> Finalizing permissions"
