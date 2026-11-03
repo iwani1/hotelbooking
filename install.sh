@@ -5,6 +5,10 @@
 # Copies the theme + companion plugin into the WordPress web volume and
 # installs/activates the required plugins via WP-CLI.
 #
+# The official WordPress image does NOT ship WP-CLI, so we download the
+# wp-cli.phar into the bind-mounted wp-content and run it through the web
+# container's own PHP.
+#
 # Usage:
 #   docker compose up -d      # or: podman-compose up -d
 #   bash install.sh
@@ -18,6 +22,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG="$ROOT/bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip"
 WP_CONTENT="$ROOT/wp-content"
 EXTRACT="$ROOT/.bookora-extract"
+WP_CLI_PHAR="$WP_CONTENT/wp-cli.phar"
+WP_DOCROOT="/var/www/html"
 
 if [ ! -f "$PKG" ]; then
     echo "Package not found: $PKG" >&2
@@ -68,7 +74,7 @@ fi
 
 # --- The WordPress container owns wp-content (www-data), so file operations
 #     there may need elevated permissions. Use sudo when not root, then hand
-#     ownership back to the host user so you can edit the files. ---
+#     ownership back to the host user so WP-CLI and later edits work cleanly. ---
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
     SUDO="sudo"
@@ -82,6 +88,29 @@ $SUDO cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
 $SUDO cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
 $SUDO chown -R "$ORIG_USER:$ORIG_USER" "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
 rm -rf "$EXTRACT"
+
+# --- Download WP-CLI into the bind-mounted wp-content so the web container can
+#     reach it through its mount. ---
+if [ ! -f "$WP_CLI_PHAR" ]; then
+    echo "==> Downloading WP-CLI"
+    WP_CLI_URL="https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
+    if ! curl -fsSL "$WP_CLI_URL" -o "$WP_CLI_PHAR"; then
+        echo "ERROR: could not download WP-CLI from $WP_CLI_URL" >&2
+        echo "Download it manually and place it at: $WP_CLI_PHAR" >&2
+        echo "  curl -O $WP_CLI_URL && cp wp-cli.phar $WP_CLI_PHAR" >&2
+        echo "Then re-run: bash install.sh" >&2
+        exit 1
+    fi
+    chmod +x "$WP_CLI_PHAR"
+else
+    echo "==> Using existing WP-CLI at $WP_CLI_PHAR"
+fi
+
+# Run WP-CLI inside the web container through its own PHP.
+wp() {
+    "${COMPOSE[@]}" exec -T web php "$WP_DOCROOT/wp-content/wp-cli.phar" \
+        --allow-root --path="$WP_DOCROOT" "$@"
+}
 
 # --- Wait for the database to be ready ---
 echo "==> Waiting for database"
@@ -97,29 +126,38 @@ if [ "$ready" != "1" ]; then
     echo "Timed out waiting for the database." >&2
     exit 1
 fi
+# The MySQL image runs a temporary init server before the real one takes over;
+# give the real mysqld a moment to fully bind the socket.
+sleep 2
 
 # --- Install WordPress core if needed ---
 echo "==> Installing WordPress core (if needed)"
-if ! "${COMPOSE[@]}" exec web wp core is-installed --allow-root; then
-    "${COMPOSE[@]}" exec web wp core install \
+if ! wp core is-installed; then
+    wp core install \
         --url="${WP_URL:-http://localhost:8080}" \
         --title="${WP_TITLE:-Bookora}" \
         --admin_user="${WP_ADMIN_USER:-admin}" \
         --admin_password="${WP_ADMIN_PASSWORD:-admin}" \
         --admin_email="${WP_ADMIN_EMAIL:-admin@example.com}" \
-        --skip-email --allow-root
+        --skip-email
 fi
 
 # --- Install required plugins ---
 echo "==> Installing required plugins from wordpress.org"
 # Directorist is a premium plugin (not on wordpress.org) — install it manually.
-"${COMPOSE[@]}" exec web wp plugin install \
+wp plugin install \
     elementor woocommerce contact-form-7 one-click-demo-import mailchimp-for-wp \
-    --activate --allow-root
+    --activate
 
 # --- Activate the theme ---
 echo "==> Activating theme"
-"${COMPOSE[@]}" exec web wp theme activate bookora --allow-root
+wp theme activate bookora
+
+# --- Remove the temporary WP-CLI phar and hand wp-content to the web server
+#     user (www-data) so the site can write uploads, cache, and run demo import. ---
+echo "==> Finalizing permissions"
+rm -f "$WP_CLI_PHAR"
+"${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content"
 
 echo ""
 echo "Done. Open http://localhost:8080 (admin / admin by default)."
@@ -129,5 +167,10 @@ echo "     'Save API Key', then enter your license key and click 'Activate Licen
 echo "  2. Appearance > Import Demo Data (One Click Demo Import) to load demo content."
 echo "  3. Install Directorist manually if you need the directory/classified listings."
 echo ""
-echo "Note: theme/plugin files were copied with sudo and chowned back to $ORIG_USER."
-echo "      (The container's www-data user can read them; use sudo to edit if needed.)"
+echo "Note: wp-content is owned by the container's www-data user so the web"
+echo "      server can write uploads. To edit files directly, use:"
+echo "       sudo chown -R \$USER:\$USER wp-content   # edit freely"
+echo "       sudo chown -R 33:33 wp-content          # hand back to the web server"
+echo "     (run the second command from inside the container if uid 33 is"
+echo "      not 'daemon' on your host: podman exec bookora-web chown -R"
+echo "      www-data:www-data /var/www/html/wp-content)"
