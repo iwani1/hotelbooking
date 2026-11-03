@@ -17,23 +17,48 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG="$ROOT/bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip"
 WP_CONTENT="$ROOT/wp-content"
+EXTRACT="$ROOT/.bookora-extract"
 
 if [ ! -f "$PKG" ]; then
     echo "Package not found: $PKG" >&2
     exit 1
 fi
 
-echo "==> Extracting theme package"
-rm -rf "$ROOT/.bookora-extract"
-mkdir -p "$ROOT/.bookora-extract"
-unzip -q "$PKG" -d "$ROOT/.bookora-extract"
+echo "==> Extracting outer package"
+rm -rf "$EXTRACT"
+mkdir -p "$EXTRACT"
+unzip -q "$PKG" -d "$EXTRACT"
+
+PKG_DIR="$EXTRACT/bookora-wp-package"
+if [ ! -d "$PKG_DIR" ]; then
+    echo "Unexpected package layout: $PKG_DIR not found" >&2
+    exit 1
+fi
+
+# The package is nested: the theme and plugin are inside inner zips.
+echo "==> Extracting theme + plugin (nested zips)"
+mkdir -p "$EXTRACT/theme" "$EXTRACT/plugin"
+unzip -q "$PKG_DIR/bookora.zip" -d "$EXTRACT/theme"
+unzip -q "$PKG_DIR/plugin/bookora-plugin.zip" -d "$EXTRACT/plugin"
+
+THEME_DIR="$EXTRACT/theme/bookora"
+PLUGIN_DIR="$EXTRACT/plugin/bookora-plugin"
+
+if [ ! -d "$THEME_DIR" ]; then
+    echo "Theme not found at $THEME_DIR" >&2
+    exit 1
+fi
+if [ ! -d "$PLUGIN_DIR" ]; then
+    echo "Plugin not found at $PLUGIN_DIR" >&2
+    exit 1
+fi
 
 echo "==> Installing theme + plugin into wp-content"
 mkdir -p "$WP_CONTENT/themes" "$WP_CONTENT/plugins"
 rm -rf "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
-cp -r "$ROOT/.bookora-extract/bookora-wp-package/bookora" "$WP_CONTENT/themes/bookora"
-cp -r "$ROOT/.bookora-extract/bookora-wp-package/plugin/bookora-plugin" "$WP_CONTENT/plugins/bookora-plugin"
-rm -rf "$ROOT/.bookora-extract"
+cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
+cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
+rm -rf "$EXTRACT"
 
 echo "==> Installing WordPress core (if needed)"
 if ! docker compose exec -T web wp core is-installed --allow-root; then
