@@ -1,0 +1,44 @@
+# Bookora — local development stack
+#
+#   docker compose up -d
+#   bash install.sh
+#   open http://localhost:8080
+#
+# The web container mounts ./wp-content so the theme/plugin you copy in
+# (see install.sh) persist across container rebuilds.
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: bookora-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bookora
+      MYSQL_USER: bookora
+      MYSQL_PASSWORD: bookora
+    volumes:
+      - bookora_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pbookora"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    image: wordpress:php8.2-apache
+    container_name: bookora-web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: bookora
+      WORDPRESS_DB_PASSWORD: bookora
+      WORDPRESS_DB_NAME: bookora
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+    ports:
+      - "8080:80"
+
+volumes:
+  bookora_db_data:

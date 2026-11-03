@@ -1,0 +1,7 @@
+# OS / editor junk
+__MACOSX/
+.DS_Store
+Thumbs.db
+
+# Extracted package (keep the source ZIPs, not their contents)
+/audit/
