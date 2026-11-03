@@ -23,6 +23,7 @@ PKG="$ROOT/bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip"
 WP_CONTENT="$ROOT/wp-content"
 EXTRACT="$ROOT/.bookora-extract"
 WP_CLI_PHAR="$WP_CONTENT/wp-cli.phar"
+WP_CLI_TMP="$ROOT/.wp-cli.phar"
 WP_DOCROOT="/var/www/html"
 
 if [ ! -f "$PKG" ]; then
@@ -72,36 +73,43 @@ if [ ! -d "$PLUGIN_DIR" ]; then
     exit 1
 fi
 
-# --- The WordPress container owns wp-content (www-data), so file operations
-#     there may need elevated permissions. Use sudo when not root, then hand
-#     ownership back to the host user so WP-CLI and later edits work cleanly. ---
+# --- Permissions setup ---
+# The web container creates wp-content as www-data. Hand it to the host user
+# so file operations (copy, download, remove) work without per-command sudo.
+# We chown back to www-data at the end so the web server can write uploads.
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
     SUDO="sudo"
 fi
 ORIG_USER="${SUDO_USER:-$(id -un)}"
 
-echo "==> Installing theme + plugin into wp-content"
+echo "==> Preparing wp-content"
 $SUDO mkdir -p "$WP_CONTENT/themes" "$WP_CONTENT/plugins"
-$SUDO rm -rf "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
-$SUDO cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
-$SUDO cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
-$SUDO chown -R "$ORIG_USER:$ORIG_USER" "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
+$SUDO chown -R "$ORIG_USER:$ORIG_USER" "$WP_CONTENT"
+
+echo "==> Installing theme + plugin into wp-content"
+rm -rf "$WP_CONTENT/themes/bookora" "$WP_CONTENT/plugins/bookora-plugin"
+cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
+cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
 rm -rf "$EXTRACT"
 
-# --- Download WP-CLI into the bind-mounted wp-content so the web container can
-#     reach it through its mount. ---
+# --- Download WP-CLI into the bind-mounted wp-content so the web container
+#     can reach it through its mount. Download to a temp file first so a
+#     failed download doesn't leave a corrupt phar in place. ---
 if [ ! -f "$WP_CLI_PHAR" ]; then
     echo "==> Downloading WP-CLI"
     WP_CLI_URL="https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
-    if ! curl -fsSL "$WP_CLI_URL" -o "$WP_CLI_PHAR"; then
+    if curl -fsSL "$WP_CLI_URL" -o "$WP_CLI_TMP"; then
+        mv "$WP_CLI_TMP" "$WP_CLI_PHAR"
+        chmod +x "$WP_CLI_PHAR"
+    else
+        rm -f "$WP_CLI_TMP"
         echo "ERROR: could not download WP-CLI from $WP_CLI_URL" >&2
         echo "Download it manually and place it at: $WP_CLI_PHAR" >&2
         echo "  curl -O $WP_CLI_URL && cp wp-cli.phar $WP_CLI_PHAR" >&2
         echo "Then re-run: bash install.sh" >&2
         exit 1
     fi
-    chmod +x "$WP_CLI_PHAR"
 else
     echo "==> Using existing WP-CLI at $WP_CLI_PHAR"
 fi
@@ -154,7 +162,8 @@ echo "==> Activating theme"
 wp theme activate bookora
 
 # --- Remove the temporary WP-CLI phar and hand wp-content to the web server
-#     user (www-data) so the site can write uploads, cache, and run demo import. ---
+#     user (www-data) so the site can write uploads, cache, and run demo import.
+#     Done inside the container so the uid maps correctly under rootless Podman. ---
 echo "==> Finalizing permissions"
 rm -f "$WP_CLI_PHAR"
 "${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content"
