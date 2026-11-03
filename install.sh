@@ -146,7 +146,7 @@ sleep 2
 
 # --- Install WordPress core if needed ---
 echo "==> Installing WordPress core (if needed)"
-if ! wp core is-installed; then
+if ! wp core is-installed 2>/dev/null; then
     wp core install \
         --url="${WP_URL:-http://localhost:8080}" \
         --title="${WP_TITLE:-Bookora}" \
@@ -159,9 +159,22 @@ fi
 # --- Install required plugins ---
 echo "==> Installing required plugins from wordpress.org"
 # Directorist is a premium plugin (not on wordpress.org) — install it manually.
+# Install all without --activate, then activate WooCommerce first.
+# Activating WooCommerce while Elementor is active crashes with
+# "Call to a member function add_feature() on null" — WooCommerce's CLI
+# runner fires rest_api_init during activation, and Elementor's module
+# manager isn't initialized in CLI context at that point.
 wp plugin install \
-    elementor woocommerce contact-form-7 one-click-demo-import mailchimp-for-wp \
-    --activate
+    elementor woocommerce contact-form-7 one-click-demo-import mailchimp-for-wp
+
+echo "==> Activating WooCommerce"
+wp plugin activate woocommerce
+
+echo "==> Activating remaining plugins"
+wp plugin activate elementor
+wp plugin activate contact-form-7
+wp plugin activate one-click-demo-import
+wp plugin activate mailchimp-for-wp
 
 # --- Activate the theme ---
 echo "==> Activating theme"
