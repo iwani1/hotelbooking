@@ -27,9 +27,10 @@ bash install.sh
 `install.sh` needs internet on first run (downloads WP-CLI + the required
 plugins from wordpress.org). It copies the theme/plugin in, installs WordPress
 core, activates the theme, and hands `wp-content` to the container's `www-data`
-user so uploads/demo-import work. To edit files later, `sudo chown -R $USER:$USER
-wp-content`, and hand back with `sudo chown -R 33:33 wp-content` (or
-`podman exec bookora-web chown -R www-data:www-data /var/www/html/wp-content`).
+user so uploads/demo-import work. To edit files later, use `sudo`, or
+`sudo chown -R $USER:$USER wp-content`; hand back with
+`podman exec bookora-web chown -R www-data:www-data /var/www/html/wp-content`
+(or the `docker exec` equivalent).
 
 **Docker:**
 ```bash
