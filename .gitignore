@@ -5,3 +5,7 @@ Thumbs.db
 
 # Extracted package (keep the source ZIPs, not their contents)
 /audit/
+
+# Installer temp files
+.wp-cli.phar
+.bookora-extract/

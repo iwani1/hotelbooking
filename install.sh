@@ -6,8 +6,8 @@
 # installs/activates the required plugins via WP-CLI.
 #
 # The official WordPress image does NOT ship WP-CLI, so we download the
-# wp-cli.phar into the bind-mounted wp-content and run it through the web
-# container's own PHP.
+# wp-cli.phar and copy it into the running web container (via podman cp /
+# docker cp), then run it through the container's own PHP.
 #
 # Usage:
 #   docker compose up -d      # or: podman-compose up -d
@@ -22,22 +22,26 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG="$ROOT/bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip"
 WP_CONTENT="$ROOT/wp-content"
 EXTRACT="$ROOT/.bookora-extract"
-WP_CLI_PHAR="$WP_CONTENT/wp-cli.phar"
 WP_CLI_TMP="$ROOT/.wp-cli.phar"
+WP_CLI_CONTAINER="/tmp/wp-cli.phar"
 WP_DOCROOT="/var/www/html"
+CONTAINER_NAME="bookora-web"
 
 if [ ! -f "$PKG" ]; then
     echo "Package not found: $PKG" >&2
     exit 1
 fi
 
-# --- Detect the Compose tool (Docker or Podman) ---
+# --- Detect the Compose tool and container runtime ---
 if docker compose version >/dev/null 2>&1; then
     COMPOSE=(docker compose)
+    CONTAINER_RUNTIME=(docker)
 elif podman compose version >/dev/null 2>&1; then
     COMPOSE=(podman compose)
+    CONTAINER_RUNTIME=(podman)
 elif command -v podman-compose >/dev/null 2>&1; then
     COMPOSE=(podman-compose)
+    CONTAINER_RUNTIME=(podman)
 else
     echo "No Compose tool found." >&2
     echo "Install one of: docker + docker-compose-plugin, or podman + podman-compose" >&2
@@ -75,7 +79,7 @@ fi
 
 # --- Permissions setup ---
 # The web container creates wp-content as www-data. Hand it to the host user
-# so file operations (copy, download, remove) work without per-command sudo.
+# so file operations (copy, remove) work without per-command sudo.
 # We chown back to www-data at the end so the web server can write uploads.
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -93,30 +97,32 @@ cp -r "$THEME_DIR" "$WP_CONTENT/themes/bookora"
 cp -r "$PLUGIN_DIR" "$WP_CONTENT/plugins/bookora-plugin"
 rm -rf "$EXTRACT"
 
-# --- Download WP-CLI into the bind-mounted wp-content so the web container
-#     can reach it through its mount. Download to a temp file first so a
-#     failed download doesn't leave a corrupt phar in place. ---
-if [ ! -f "$WP_CLI_PHAR" ]; then
+# --- Download WP-CLI and copy it into the running container ---
+# We copy the phar into the container (via podman cp / docker cp) rather than
+# relying on the bind mount, which can have SELinux label issues on Fedora.
+if [ ! -f "$WP_CLI_TMP" ]; then
     echo "==> Downloading WP-CLI"
     WP_CLI_URL="https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
-    if curl -fsSL "$WP_CLI_URL" -o "$WP_CLI_TMP"; then
-        mv "$WP_CLI_TMP" "$WP_CLI_PHAR"
-        chmod +x "$WP_CLI_PHAR"
-    else
+    if ! curl -fsSL "$WP_CLI_URL" -o "$WP_CLI_TMP"; then
         rm -f "$WP_CLI_TMP"
         echo "ERROR: could not download WP-CLI from $WP_CLI_URL" >&2
-        echo "Download it manually and place it at: $WP_CLI_PHAR" >&2
-        echo "  curl -O $WP_CLI_URL && cp wp-cli.phar $WP_CLI_PHAR" >&2
+        echo "Download it manually and place it at: $WP_CLI_TMP" >&2
+        echo "  curl -O $WP_CLI_URL" >&2
         echo "Then re-run: bash install.sh" >&2
         exit 1
     fi
+    chmod +x "$WP_CLI_TMP"
 else
-    echo "==> Using existing WP-CLI at $WP_CLI_PHAR"
+    echo "==> Using existing WP-CLI at $WP_CLI_TMP"
 fi
+
+echo "==> Copying WP-CLI into the web container"
+"${CONTAINER_RUNTIME[@]}" cp "$WP_CLI_TMP" "$CONTAINER_NAME:$WP_CLI_CONTAINER"
+"${CONTAINER_RUNTIME[@]}" exec "$CONTAINER_NAME" chmod +x "$WP_CLI_CONTAINER"
 
 # Run WP-CLI inside the web container through its own PHP.
 wp() {
-    "${COMPOSE[@]}" exec -T web php "$WP_DOCROOT/wp-content/wp-cli.phar" \
+    "${COMPOSE[@]}" exec -T web php "$WP_CLI_CONTAINER" \
         --allow-root --path="$WP_DOCROOT" "$@"
 }
 
@@ -161,11 +167,10 @@ wp plugin install \
 echo "==> Activating theme"
 wp theme activate bookora
 
-# --- Remove the temporary WP-CLI phar and hand wp-content to the web server
-#     user (www-data) so the site can write uploads, cache, and run demo import.
-#     Done inside the container so the uid maps correctly under rootless Podman. ---
+# --- Clean up and hand wp-content to the web server user (www-data) ---
 echo "==> Finalizing permissions"
-rm -f "$WP_CLI_PHAR"
+rm -f "$WP_CLI_TMP"
+"${CONTAINER_RUNTIME[@]}" exec "$CONTAINER_NAME" rm -f "$WP_CLI_CONTAINER"
 "${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content"
 
 echo ""
