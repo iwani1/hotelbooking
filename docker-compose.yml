@@ -1,6 +1,8 @@
 # Bookora — local development stack
 #
-#   docker compose up -d
+# Works with both Docker and Podman.
+#
+#   docker compose up -d      # or: podman-compose up -d
 #   bash install.sh
 #   open http://localhost:8080
 #
@@ -18,25 +20,20 @@ services:
       MYSQL_PASSWORD: bookora
     volumes:
       - bookora_db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pbookora"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
 
   web:
     image: wordpress:php8.2-apache
     container_name: bookora-web
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: bookora
       WORDPRESS_DB_PASSWORD: bookora
       WORDPRESS_DB_NAME: bookora
     volumes:
-      - ./wp-content:/var/www/html/wp-content
+      # :Z relabels for SELinux (required on Fedora Podman)
+      - ./wp-content:/var/www/html/wp-content:Z
     ports:
       - "8080:80"
 

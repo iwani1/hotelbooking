@@ -12,9 +12,23 @@ A pre-built WordPress theme package: **Bookora — Hotel Booking WordPress Theme
 | `install.sh` | Copies theme/plugin in and installs required plugins |
 | `.gitignore` | Ignores OS junk and extracted package contents |
 
-## Quick start (Docker — recommended)
+## Quick start
 
+Works with **Docker** or **Podman** (`install.sh` auto-detects whichever you have).
+
+**Podman (Fedora default — rootless, no sudo):**
 ```bash
+sudo dnf install podman podman-compose
+podman-compose up -d
+bash install.sh
+# open http://localhost:8080  (admin / admin)
+```
+
+**Docker:**
+```bash
+sudo dnf install docker docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER   # then log out/back in
 docker compose up -d
 bash install.sh
 # open http://localhost:8080  (admin / admin)
