@@ -158,9 +158,19 @@ fi
 
 # --- Install required plugins ---
 echo "==> Installing required plugins from wordpress.org"
+# Install each plugin individually so one failure doesn't block the others.
 # Directorist is a premium plugin (not on wordpress.org) — install it manually.
-wp plugin install \
-    elementor woocommerce contact-form-7 one-click-demo-import mailchimp-for-wp
+
+wp plugin install elementor 2>/dev/null || true
+wp plugin install woocommerce 2>/dev/null || true
+# contact-form-7 has a malformed Requires PHP field in some versions —
+# try latest, fall back to 5.9.7, then skip if both fail.
+if ! wp plugin install contact-form-7 2>/dev/null; then
+    wp plugin install contact-form-7@5.9.7 2>/dev/null \
+        || echo "WARNING: contact-form-7 could not be installed — install it manually from the WordPress admin"
+fi
+wp plugin install one-click-demo-import 2>/dev/null || true
+wp plugin install mailchimp-for-wp 2>/dev/null || true
 
 # Deactivate Elementor if active — activating WooCommerce while Elementor is
 # active crashes with "Call to a member function add_feature() on null" because
