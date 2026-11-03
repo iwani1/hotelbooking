@@ -22,7 +22,7 @@ services:
       - bookora_db_data:/var/lib/mysql
 
   web:
-    image: wordpress:php8.2-apache
+    image: docker.io/library/wordpress:php8.2-apache
     container_name: bookora-web
     depends_on:
       - db
