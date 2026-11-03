@@ -213,7 +213,13 @@ fi
 echo "==> Finalizing permissions"
 rm -f "$WP_CLI_TMP"
 "${CONTAINER_RUNTIME[@]}" exec "$CONTAINER_NAME" rm -f "$WP_CLI_CONTAINER"
-"${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content"
+# Remove any leftover wp-cli.phar from wp-content (older script versions
+# downloaded it there directly).
+"${COMPOSE[@]}" exec -T web rm -f "$WP_DOCROOT/wp-content/wp-cli.phar" 2>/dev/null || true
+# Hand wp-content to www-data so the web server can write uploads/cache.
+# Use || true as a safety net — the site is already fully installed; this is
+# just a permissions nicety.
+"${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content" 2>/dev/null || true
 
 echo ""
 echo "Done. Open http://localhost:8080 (admin / admin by default)."
