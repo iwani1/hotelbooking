@@ -213,14 +213,17 @@ fi
 echo "==> Finalizing permissions"
 rm -f "$WP_CLI_TMP"
 "${CONTAINER_RUNTIME[@]}" exec "$CONTAINER_NAME" rm -f "$WP_CLI_CONTAINER"
-# Remove any leftover wp-cli.phar from wp-content (older script versions
-# downloaded it there directly).
-"${COMPOSE[@]}" exec -T web rm -f "$WP_DOCROOT/wp-content/wp-cli.phar" 2>/dev/null || true
+# Remove any leftover wp-cli.phar from wp-content on the HOST first —
+# it's a bind mount, so removing on host = removing in container. The
+# in-container rm fails due to SELinux labels on Fedora.
+rm -f "$WP_CONTENT/wp-cli.phar"
 # Create the uploads directory if it doesn't exist — demo import and media
 # uploads need it, and the WordPress image doesn't create it automatically
 # when wp-content is a bind mount.
 "${COMPOSE[@]}" exec -T web mkdir -p "$WP_DOCROOT/wp-content/uploads"
 # Hand wp-content to www-data so the web server can write uploads/cache.
+# A single un-chownable file aborts the entire -R chown, so make sure
+# nothing is left behind first.
 "${COMPOSE[@]}" exec -T web chown -R www-data:www-data "$WP_DOCROOT/wp-content"
 
 echo ""
