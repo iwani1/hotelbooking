@@ -15,7 +15,9 @@ if [ "$1" = compose ]; then
   shift
   case "$1" in
     version) exit 0;;
-    ps) echo web-id; exit 0;;
+    ps)
+      [ "$#" = 2 ] && [ "$2" = -q ] || { echo 'Unexpected ps arguments' >&2; exit 1; }
+      printf 'db-id\nweb-id\n'; exit 0;;
     exec)
       shift 2 # exec -T
       service="$1"; shift
@@ -33,6 +35,13 @@ if [ "$1" = compose ]; then
         'plugin list') exit 0;;
         *) echo "Unexpected WP command: $*" >&2; exit 1;;
       esac;;
+  esac
+fi
+if [ "$1" = inspect ]; then
+  case "${4:-}" in
+    db-id) echo 'db true';;
+    web-id) echo 'web true';;
+    *) echo 'Unknown container' >&2; exit 1;;
   esac
 fi
 if [ "$1" = exec ] && [ "${3:-}" = mktemp ]; then echo /tmp/bookora-test; fi

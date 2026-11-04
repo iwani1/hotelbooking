@@ -26,9 +26,20 @@ case "${BOOKORA_RUNTIME:-auto}" in
     *) echo 'BOOKORA_RUNTIME must be auto, podman, or docker.' >&2; exit 1 ;;
 esac
 
-WEB_ID="$("${COMPOSE[@]}" ps -q web)"
-[ -n "$WEB_ID" ] || { echo 'Start the stack first with your chosen Compose provider.' >&2; exit 1; }
-"${RUNTIME[@]}" inspect "$WEB_ID" >/dev/null
+# podman-compose does not accept a service argument for `ps -q` in all
+# versions. Query this Compose project, then identify its running web service
+# by the standard Compose service label; never guess from container ordering.
+CONTAINER_IDS="$("${COMPOSE[@]}" ps -q)"
+WEB_ID=''
+while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    service_state="$("${RUNTIME[@]}" inspect --format '{{index .Config.Labels "com.docker.compose.service"}} {{.State.Running}}' "$id")" || continue
+    if [ "$service_state" = 'web true' ]; then
+        WEB_ID="$id"
+        break
+    fi
+done <<< "$CONTAINER_IDS"
+[ -n "$WEB_ID" ] || { echo 'No running web container found. Start the stack and check Compose logs.' >&2; exit 1; }
 
 # A release version and digest are deliberately pinned. Update both together
 # after checking the official WP-CLI release, not from an unverified mirror.
