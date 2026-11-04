@@ -2,7 +2,7 @@
 # Do not expose this stack publicly or use it for real customer data.
 services:
   db:
-    image: ${BOOKORA_DB_IMAGE:-mysql:8.0.44}
+    image: ${BOOKORA_DB_IMAGE:-docker.io/library/mysql:8.0.44}
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: bookora
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 40
   web:
-    image: ${BOOKORA_WORDPRESS_IMAGE:-wordpress:6.8.3-php8.2-apache}
+    image: ${BOOKORA_WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.3-php8.2-apache}
     depends_on:
       db:
         condition: service_healthy
