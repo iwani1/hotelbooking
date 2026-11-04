@@ -26,7 +26,8 @@ if [ "$1" = compose ]; then
       shift 5 # php phar --allow-root --path --skip-plugins
       [ "$1" = --skip-themes ] && shift
       case "$1 $2" in
-        'core is-installed') exit 0;;
+        'core is-installed') [ "${MOCK_FRESH:-0}" != 1 ]; exit $?;;
+        'core install') exit 0;;
         'plugin is-installed') exit 0;;
         'plugin is-active') [ "$3" != bookora-plugin ] || [ -f "$MOCK_STATE" ]; exit $?;;
         'plugin activate') [ "$3" != bookora-plugin ] || touch "$MOCK_STATE"; exit 0;;
@@ -44,6 +45,7 @@ if [ "$1" = inspect ]; then
     *) echo 'Unknown container' >&2; exit 1;;
   esac
 fi
+if [ "$1" = port ]; then echo '127.0.0.1:8081'; fi
 if [ "$1" = exec ] && [ "${3:-}" = mktemp ]; then echo /tmp/bookora-test; fi
 exit 0
 MOCK
@@ -73,4 +75,10 @@ grep -q '^podman compose ' "$MOCK_LOG"
 if grep -q '^docker ' "$MOCK_LOG"; then
   echo 'Explicit Podman selection unexpectedly invoked Docker' >&2; exit 1
 fi
-echo 'Installer mock smoke test passed (Docker and explicit Podman).'
+# Fresh WordPress must receive the actual published port, not a hardcoded URL.
+: > "$MOCK_LOG"
+rm -f "$MOCK_STATE"
+PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman MOCK_FRESH=1 WP_ADMIN_PASSWORD='test-password-123' bash "$ROOT/install.sh" > "$TMP/output"
+grep -q 'core install --url=http://localhost:8081' "$MOCK_LOG"
+grep -q 'Open http://localhost:8081' "$TMP/output"
+echo 'Installer mock smoke test passed (Docker, Podman, and a non-default port).'

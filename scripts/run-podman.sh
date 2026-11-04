@@ -61,6 +61,5 @@ export WP_ADMIN_PASSWORD
 "${COMPOSE[@]}" up -d
 BOOKORA_RUNTIME=podman bash "$ROOT/install.sh"
 unset WP_ADMIN_PASSWORD
-printf '\nOpen http://localhost:8080\n'
-printf 'For a fresh install, the admin username is bookora-admin.\n'
+printf '\nFor a fresh install, the admin username is bookora-admin.\n'
 printf 'Existing WordPress installations retain their current admin password.\n'

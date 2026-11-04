@@ -40,6 +40,12 @@ while IFS= read -r id; do
     fi
 done <<< "$CONTAINER_IDS"
 [ -n "$WEB_ID" ] || { echo 'No running web container found. Start the stack and check Compose logs.' >&2; exit 1; }
+BINDING="$("${RUNTIME[@]}" port "$WEB_ID" 80/tcp)"
+HOST_PORT="${BINDING##*:}"
+case "$HOST_PORT" in
+    ''|*[!0-9]*) echo 'Could not determine the published web port.' >&2; exit 1 ;;
+esac
+LOCAL_URL="http://localhost:$HOST_PORT"
 
 # A release version and digest are deliberately pinned. Update both together
 # after checking the official WP-CLI release, not from an unverified mirror.
@@ -73,7 +79,7 @@ if ! wp core is-installed; then
     if [ "${#password}" -lt 12 ]; then
         echo 'Set WP_ADMIN_PASSWORD to a unique password of at least 12 characters before installing WordPress.' >&2; exit 1
     fi
-    wp core install --url="${WP_URL:-http://localhost:8080}" \
+    wp core install --url="${WP_URL:-$LOCAL_URL}" \
         --title="${WP_TITLE:-Bookora}" --admin_user="${WP_ADMIN_USER:-bookora-admin}" \
         --admin_password="$password" --admin_email="${WP_ADMIN_EMAIL:-admin@example.com}" --skip-email
     unset password
@@ -118,5 +124,6 @@ wp plugin is-active bookora-plugin || { echo 'Companion plugin activation failed
 wp theme activate bookora
 [ "$(wp option get stylesheet)" = bookora ] || { echo 'Theme activation failed.' >&2; exit 1; }
 "${COMPOSE[@]}" exec -T web sh -c 'mkdir -p /var/www/html/wp-content/uploads && chown www-data:www-data /var/www/html/wp-content/uploads'
-echo 'Installation complete. Open http://localhost:8080. Booking requires a separate provider.'
+echo "Installation complete. Open $LOCAL_URL. Booking requires a separate provider."
+echo 'Existing WordPress installations keep their configured site URL; changing ports may require updating it.'
 wp plugin list --fields=name,status,version

@@ -33,6 +33,6 @@ services:
     volumes:
       - ./wp-content:/var/www/html/wp-content:Z
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:${BOOKORA_PORT:-8080}:80"
 volumes:
   bookora_db_data:
