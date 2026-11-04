@@ -29,32 +29,17 @@ else:
     print('Using existing .env and database credentials.')
 PY
 
-plugin_version() {
-    curl -fsSG 'https://api.wordpress.org/plugins/info/1.2/' \
-        --data-urlencode 'action=plugin_information' \
-        --data-urlencode "request[slug]=$1" |
-    python3 -c '
-import json, re, sys
-v = json.load(sys.stdin)["version"]
-if not re.fullmatch(r"[0-9][0-9A-Za-z._+-]*", v):
-    sys.exit("Invalid plugin version returned")
-print(v)
-'
-}
-
-# WooCommerce 10.6.2 declares WordPress 6.8+ and PHP 7.4+, matching the
-# pinned local WordPress 6.8.3 / PHP 8.2 image. Newer WooCommerce releases
-# may require a newer WordPress version. This is a development baseline,
-# not a security or end-to-end compatibility certification.
+# A fixed local-development baseline avoids selecting plugin releases that
+# require newer WordPress/PHP versions than the supplied 6.8.3 / 8.2 image.
+# These are not certified secure or end-to-end compatible; review updates.
 WP_WOOCOMMERCE_VERSION="${WP_WOOCOMMERCE_VERSION:-10.6.2}"
-# Other versions may be overridden with reviewed, compatible releases.
-# Keep assignments separate from export so API errors stop the script.
-WP_ELEMENTOR_VERSION="${WP_ELEMENTOR_VERSION:-$(plugin_version elementor)}"
-WP_CONTACT_FORM_7_VERSION="${WP_CONTACT_FORM_7_VERSION:-$(plugin_version contact-form-7)}"
-WP_OCDI_VERSION="${WP_OCDI_VERSION:-$(plugin_version one-click-demo-import)}"
-WP_MAILCHIMP_VERSION="${WP_MAILCHIMP_VERSION:-$(plugin_version mailchimp-for-wp)}"
+WP_ELEMENTOR_VERSION="${WP_ELEMENTOR_VERSION:-4.3.6}"
+WP_CONTACT_FORM_7_VERSION="${WP_CONTACT_FORM_7_VERSION:-6.1.7}"
+WP_OCDI_VERSION="${WP_OCDI_VERSION:-3.4.1}"
+WP_MAILCHIMP_VERSION="${WP_MAILCHIMP_VERSION:-4.14.1}"
 export WP_WOOCOMMERCE_VERSION WP_ELEMENTOR_VERSION WP_CONTACT_FORM_7_VERSION WP_OCDI_VERSION WP_MAILCHIMP_VERSION
-printf 'Using WooCommerce %s; other plugin versions are selected from WordPress.org unless overridden.\n' "$WP_WOOCOMMERCE_VERSION"
+printf 'Using local plugin baseline: WooCommerce %s, Elementor %s, Contact Form 7 %s, OCDI %s, Mailchimp %s.\n' \
+    "$WP_WOOCOMMERCE_VERSION" "$WP_ELEMENTOR_VERSION" "$WP_CONTACT_FORM_7_VERSION" "$WP_OCDI_VERSION" "$WP_MAILCHIMP_VERSION"
 
 if [ -z "${WP_ADMIN_PASSWORD:-}" ]; then
     if [ ! -r /dev/tty ]; then
