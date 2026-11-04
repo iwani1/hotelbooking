@@ -1,0 +1,36 @@
+# Local development only; do not expose to the internet.
+services:
+  database:
+    image: docker.io/library/postgres:16
+    environment:
+      POSTGRES_DB: bookora
+      POSTGRES_USER: bookora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - bookora-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookora -d bookora"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  api:
+    build: .
+    command: npm run server
+    environment:
+      DATABASE_URL: postgres://bookora:${POSTGRES_PASSWORD}@database:5432/bookora
+      BOOKORA_ADMIN_PASSWORD: ${BOOKORA_ADMIN_PASSWORD:?Set BOOKORA_ADMIN_PASSWORD in .env}
+      PORT: '3001'
+    depends_on:
+      database:
+        condition: service_healthy
+  web:
+    build: .
+    command: npm run dev
+    environment:
+      BOOKORA_API_PROXY: http://api:3001
+    ports:
+      - "127.0.0.1:${BOOKORA_STANDALONE_PORT:-8082}:5173"
+    depends_on:
+      - api
+volumes:
+  bookora-db:

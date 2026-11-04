@@ -1,5 +1,7 @@
 # Bookora hotel theme package
 
+> **Standalone application:** A separate non-WordPress TypeScript/Node.js and PostgreSQL prototype is available in [`standalone/`](standalone/README.md). It is an early foundation, not a full or production-ready hotel management system.
+
 This repository contains the Bookora WordPress theme, companion plugin, and a basic staff-only reception reservation plugin. **It is not a complete hotel booking system.** The reception tool does not handle online bookings, payments, confirmations, or channel synchronization. Thoroughly test all workflows and security before accepting real bookings.
 
 ## Contents
