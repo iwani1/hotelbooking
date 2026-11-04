@@ -29,8 +29,12 @@ if [ "$1" = compose ]; then
         'core is-installed') [ "${MOCK_FRESH:-0}" != 1 ]; exit $?;;
         'core install') exit 0;;
         'plugin is-installed') exit 0;;
-        'plugin is-active') [ "$3" != bookora-plugin ] || [ -f "$MOCK_STATE" ]; exit $?;;
-        'plugin activate') [ "$3" != bookora-plugin ] || touch "$MOCK_STATE"; exit 0;;
+        'plugin is-active')
+          case "$3" in bookora-plugin|bookora-reception) [ -f "$MOCK_STATE-$3" ];; *) true;; esac
+          exit $?;;
+        'plugin activate')
+          case "$3" in bookora-plugin|bookora-reception) touch "$MOCK_STATE-$3";; esac
+          exit 0;;
         'theme activate') exit 0;;
         'option get') echo bookora; exit 0;;
         'plugin list') exit 0;;
@@ -46,6 +50,7 @@ if [ "$1" = inspect ]; then
   esac
 fi
 if [ "$1" = port ]; then echo '127.0.0.1:8081'; fi
+if [ "$1" = exec ] && [ "${3:-}" = test ] && [ "${5:-}" = /var/www/html/wp-content/plugins/bookora-reception ]; then exit 1; fi
 if [ "$1" = exec ] && [ "${3:-}" = mktemp ]; then echo /tmp/bookora-test; fi
 exit 0
 MOCK
@@ -60,8 +65,11 @@ cat >/dev/null
 MOCK
 chmod +x "$TMP/bin/"*
 PATH="$TMP/bin:$PATH" bash "$ROOT/install.sh" >/dev/null
-[ -f "$MOCK_STATE" ] || { echo 'Companion plugin was not activated' >&2; exit 1; }
+[ -f "$MOCK_STATE-bookora-plugin" ] || { echo 'Companion plugin was not activated' >&2; exit 1; }
+[ -f "$MOCK_STATE-bookora-reception" ] || { echo 'Reception plugin was not activated' >&2; exit 1; }
 grep -q 'plugin activate bookora-plugin' "$MOCK_LOG"
+grep -q 'plugin activate bookora-reception' "$MOCK_LOG"
+grep -q 'cp .*plugin/bookora-reception web-id:/tmp/bookora-test/bookora-reception' "$MOCK_LOG"
 grep -q 'theme activate bookora' "$MOCK_LOG"
 if grep -Eq 'mysql .*UPDATE|rm -rf /var/www/html/wp-content' "$MOCK_LOG"; then
   echo 'Unexpected destructive fallback' >&2; exit 1
@@ -69,7 +77,7 @@ fi
 # With both CLIs on PATH, an explicit Podman selection must not invoke Docker.
 cp "$TMP/bin/docker" "$TMP/bin/podman"
 : > "$MOCK_LOG"
-rm -f "$MOCK_STATE"
+rm -f "$MOCK_STATE-bookora-plugin" "$MOCK_STATE-bookora-reception"
 PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman bash "$ROOT/install.sh" >/dev/null
 grep -q '^podman compose ' "$MOCK_LOG"
 if grep -q '^docker ' "$MOCK_LOG"; then
@@ -77,7 +85,7 @@ if grep -q '^docker ' "$MOCK_LOG"; then
 fi
 # Fresh WordPress must receive the actual published port, not a hardcoded URL.
 : > "$MOCK_LOG"
-rm -f "$MOCK_STATE"
+rm -f "$MOCK_STATE-bookora-plugin" "$MOCK_STATE-bookora-reception"
 PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman MOCK_FRESH=1 WP_ADMIN_PASSWORD='test-password-123' bash "$ROOT/install.sh" > "$TMP/output"
 grep -q 'core install --url=http://localhost:8081' "$MOCK_LOG"
 grep -q 'Open http://localhost:8081' "$TMP/output"

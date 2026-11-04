@@ -1,10 +1,10 @@
 # Bookora hotel theme package
 
-This repository contains the Bookora WordPress theme and companion plugin. **It is not a complete hotel booking system.** Install and configure a separate booking provider, then thoroughly test availability, reservations, payments, cancellations, notifications, and concurrency before accepting real bookings.
+This repository contains the Bookora WordPress theme, companion plugin, and a basic staff-only reception reservation plugin. **It is not a complete hotel booking system.** The reception tool does not handle online bookings, prices, payments, confirmations, or channel synchronization. Thoroughly test all workflows and security before accepting real bookings.
 
 ## Contents
 
-- `theme/bookora/` and `plugin/bookora-plugin/`: editable source of the packaged theme and companion plugin.
+- `theme/bookora/`, `plugin/bookora-plugin/`, and `plugin/bookora-reception/`: editable source of the theme, companion plugin, and staff reception tool.
 - `bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip`: distributable package, including the nested theme and plugin ZIPs and the original documentation and license notices. Run `scripts/package.sh` after editing the source to rebuild it. The local installer uses the source directories, not the ZIP.
 - `docker-compose.yml` and `install.sh`: **local development only**, not a production deployment.
 - `hotelbooking-audit-report.md`: the original audit, including limitations. See `REMEDIATION.md` for what changed and what remains to verify.
@@ -31,9 +31,17 @@ Requirements: Docker Compose or Podman Compose, Bash, curl, `sha256sum`, interne
    ```
 
    Optional initial-install variables: `WP_URL` (defaults to `http://localhost:8080`), `WP_TITLE`, `WP_ADMIN_USER` (defaults to `bookora-admin`) and `WP_ADMIN_EMAIL`. The password is only required when creating a new WordPress installation. Do not use a real customer-facing email or site in this development stack.
-4. Open `http://localhost:8080`. Configure and test the booking provider separately. Directorist, if desired, is an optional separate installation; it is not a substitute for verifying booking capability.
+4. Open `http://localhost:8080` (or your configured local port). Use the **Reception** menu to manage staff reservations. A separate provider is needed for online bookings and payments. Directorist, if desired, is optional.
 
-The installer checks the WP-CLI release SHA-256, installs missing dependencies at the supplied versions, activates the Bookora companion plugin and theme through WP-CLI, verifies activation, and stops on errors. Installed dependencies are preserved rather than silently upgraded or removed. It also preserves an existing `bookora` theme or `bookora-plugin` directory by default; to replace them with this checkout, **back up customizations first**, then run `BOOKORA_REPLACE=1 bash install.sh`. This explicitly replaces those directories, not the rest of `wp-content` or the active plugin list. The script does not roll back a partially completed installation; back up the database and files before modifying an existing site. If an activation fails, fix the reported error and rerun. Do not use the example stack for production, public access, or sensitive data.
+The installer checks the WP-CLI release SHA-256, installs missing dependencies at the supplied versions, activates the Bookora companion plugin, reception plugin and theme through WP-CLI, verifies activation, and stops on errors. Installed dependencies are preserved rather than silently upgraded or removed. It also preserves an existing `bookora` theme or `bookora-plugin` directory by default; to replace them with this checkout, **back up customizations first**, then run `BOOKORA_REPLACE=1 bash install.sh`. This explicitly replaces those directories, not the rest of `wp-content` or the active plugin list. The script does not roll back a partially completed installation; back up the database and files before modifying an existing site. If an activation fails, fix the reported error and rerun. Do not use the example stack for production, public access, or sensitive data.
+
+## Reception bookings
+
+Sign in at `/wp-admin/` as an administrator. Open **Reception → Rooms** and add each physical room with its maximum guest capacity. Then use **Reception → Reservations** to enter the guest, optional contact details, room, number of guests, check-in and check-out. The server validates dates and capacity and checks for overlapping reservations; check-out is exclusive, so another guest can arrive on that day. The dashboard displays the 100 most recently created reservations. Staff can check in confirmed reservations, check out checked-in guests, or cancel confirmed reservations. Checked-out reservations remain in the history; cancelled reservations no longer block the room. Reservations cannot currently be edited, deleted, or cancelled after check-in, and rooms cannot yet be edited or deleted.
+
+For a separate staff login, an administrator can go to **Users → Add New User** and assign the **Receptionist** role. This role can manage rooms and reservations but does not receive general administrator privileges. Do not share the administrator account. Booking data (including guest contact details) is stored in this site's WordPress database and remains there if the plugin is deactivated. Back up the database, restrict access and establish a privacy/retention policy.
+
+This is a single-site, single-room-per-reservation reception tool. Its availability check covers **only reservations created by this plugin**; it does not synchronize with external booking channels, WooCommerce orders, or any public website form. It does not handle rates, payments, emails, refunds, room maintenance, taxes, reporting, or multi-room bookings. The local stack and plugin have not been integration-tested against a real database or concurrent requests; validate them before use with real customers. Network-wide WordPress multisite activation is not supported.
 
 ## Availability and demo import
 
@@ -55,7 +63,7 @@ The companion plugin no longer enables SVG uploads or uses the broken custom san
 
 ## Tests
 
-With PHP 8+ and Node.js installed, run `php tests/license-manager-test.php`, `php tests/backup-ajax-test.php`, `bash tests/installer-smoke.sh`, and `node --check theme/bookora/assets/js/admin-license.js`. These tests use stubs and mocks; they do not replace a live WordPress integration test.
+With PHP 8+ and Node.js installed, run `php tests/license-manager-test.php`, `php tests/backup-ajax-test.php`, `php tests/reception-test.php`, `php tests/reception-activation-test.php`, `bash tests/installer-smoke.sh`, and `node --check theme/bookora/assets/js/admin-license.js`. These tests use stubs and mocks; they do not replace a live WordPress integration test.
 
 ## License
 

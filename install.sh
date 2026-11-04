@@ -100,6 +100,7 @@ install_code() {
 }
 install_code "$ROOT/theme/bookora" /var/www/html/wp-content/themes bookora
 install_code "$ROOT/plugin/bookora-plugin" /var/www/html/wp-content/plugins bookora-plugin
+install_code "$ROOT/plugin/bookora-reception" /var/www/html/wp-content/plugins bookora-reception
 
 install_plugin() {
     local slug="$1" version="$2"
@@ -121,9 +122,11 @@ install_plugin one-click-demo-import "${WP_OCDI_VERSION:-}"
 install_plugin mailchimp-for-wp "${WP_MAILCHIMP_VERSION:-}"
 if ! wp plugin is-active bookora-plugin; then wp plugin activate bookora-plugin; fi
 wp plugin is-active bookora-plugin || { echo 'Companion plugin activation failed.' >&2; exit 1; }
+if ! wp plugin is-active bookora-reception; then wp plugin activate bookora-reception; fi
+wp plugin is-active bookora-reception || { echo 'Reception plugin activation failed.' >&2; exit 1; }
 wp theme activate bookora
 [ "$(wp option get stylesheet)" = bookora ] || { echo 'Theme activation failed.' >&2; exit 1; }
 "${COMPOSE[@]}" exec -T web sh -c 'mkdir -p /var/www/html/wp-content/uploads && chown www-data:www-data /var/www/html/wp-content/uploads'
-echo "Installation complete. Open $LOCAL_URL. Booking requires a separate provider."
+echo "Installation complete. Open $LOCAL_URL and use Reception for staff reservations."
 echo 'Existing WordPress installations keep their configured site URL; changing ports may require updating it.'
 wp plugin list --fields=name,status,version

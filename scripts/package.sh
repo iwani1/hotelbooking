@@ -7,11 +7,13 @@ PACKAGE="$ROOT/bookora_hotel_booking_wordpress_theme_2026_01_08_10_59_53_utc.zip
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 unzip -q "$PACKAGE" -d "$TMP/package"
-[ -d "$ROOT/theme/bookora" ] && [ -d "$ROOT/plugin/bookora-plugin" ]
+[ -d "$ROOT/theme/bookora" ] && [ -d "$ROOT/plugin/bookora-plugin" ] && [ -d "$ROOT/plugin/bookora-reception" ]
 (cd "$ROOT/theme" && zip -Xqr "$TMP/bookora.zip" bookora)
 (cd "$ROOT/plugin" && zip -Xqr "$TMP/bookora-plugin.zip" bookora-plugin)
+(cd "$ROOT/plugin" && zip -Xqr "$TMP/bookora-reception.zip" bookora-reception)
 cp "$TMP/bookora.zip" "$TMP/package/bookora-wp-package/bookora.zip"
 cp "$TMP/bookora-plugin.zip" "$TMP/package/bookora-wp-package/plugin/bookora-plugin.zip"
+cp "$TMP/bookora-reception.zip" "$TMP/package/bookora-wp-package/plugin/bookora-reception.zip"
 (cd "$TMP/package" && zip -Xqr "$TMP/package.zip" bookora-wp-package)
 unzip -tq "$TMP/package.zip" >/dev/null
 cp "$TMP/package.zip" "$PACKAGE"
