@@ -42,13 +42,19 @@ print(v)
 '
 }
 
-# Versions can be overridden for a tested deployment. Defaults are the
-# latest published versions, whose compatibility still needs verification.
-export WP_WOOCOMMERCE_VERSION="${WP_WOOCOMMERCE_VERSION:-$(plugin_version woocommerce)}"
-export WP_ELEMENTOR_VERSION="${WP_ELEMENTOR_VERSION:-$(plugin_version elementor)}"
-export WP_CONTACT_FORM_7_VERSION="${WP_CONTACT_FORM_7_VERSION:-$(plugin_version contact-form-7)}"
-export WP_OCDI_VERSION="${WP_OCDI_VERSION:-$(plugin_version one-click-demo-import)}"
-export WP_MAILCHIMP_VERSION="${WP_MAILCHIMP_VERSION:-$(plugin_version mailchimp-for-wp)}"
+# WooCommerce 10.6.2 declares WordPress 6.8+ and PHP 7.4+, matching the
+# pinned local WordPress 6.8.3 / PHP 8.2 image. Newer WooCommerce releases
+# may require a newer WordPress version. This is a development baseline,
+# not a security or end-to-end compatibility certification.
+WP_WOOCOMMERCE_VERSION="${WP_WOOCOMMERCE_VERSION:-10.6.2}"
+# Other versions may be overridden with reviewed, compatible releases.
+# Keep assignments separate from export so API errors stop the script.
+WP_ELEMENTOR_VERSION="${WP_ELEMENTOR_VERSION:-$(plugin_version elementor)}"
+WP_CONTACT_FORM_7_VERSION="${WP_CONTACT_FORM_7_VERSION:-$(plugin_version contact-form-7)}"
+WP_OCDI_VERSION="${WP_OCDI_VERSION:-$(plugin_version one-click-demo-import)}"
+WP_MAILCHIMP_VERSION="${WP_MAILCHIMP_VERSION:-$(plugin_version mailchimp-for-wp)}"
+export WP_WOOCOMMERCE_VERSION WP_ELEMENTOR_VERSION WP_CONTACT_FORM_7_VERSION WP_OCDI_VERSION WP_MAILCHIMP_VERSION
+printf 'Using WooCommerce %s; other plugin versions are selected from WordPress.org unless overridden.\n' "$WP_WOOCOMMERCE_VERSION"
 
 if [ -z "${WP_ADMIN_PASSWORD:-}" ]; then
     if [ ! -r /dev/tty ]; then
