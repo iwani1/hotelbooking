@@ -1,0 +1,141 @@
+.bk-price-sec {
+	background-color: #F7F6F2;
+	.bk-sec-title {
+		gap: 0px 30px;
+		max-width: 1295px;
+		justify-content: space-between;
+		@media #{$md,$sm,$xs,$xxs} {
+			flex-wrap: wrap;
+		}
+		.sec_title {
+			max-width: 768px;
+			@media #{$lg} {
+				max-width: 650px;
+			}
+		}
+	}
+}
+.bk-price-content {
+	gap: 24px;
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	@media #{$md} {
+		grid-template-columns: 1fr 1fr;
+	}
+	@media #{$sm,$xs,$xxs} {
+		grid-template-columns: 1fr;
+	}
+}
+.bk-price-img {
+	overflow: hidden;
+	border-radius: 24px;
+	@media #{$sm,$xs,$xxs} {
+		max-height: 500px;
+	}
+	&:before {
+		top: 0;
+		left: 0;
+		z-index: 1;
+		width: 100%;
+		content: '';
+		height: 100%;
+		position: absolute;
+		background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.54) 30.35%, rgba(0, 0, 0, 0.18) 100%);
+	}
+	.item-text {
+		top: 48px;
+		left: 48px;
+		z-index: 2;
+		max-width: 405px;
+		position: absolute;
+		@media #{$lg,$xxs} {
+			top: 40px;
+			left: 25px;
+			right: 15px;
+		}
+		h3 {
+			color: #fff;
+			font-size: 44px;
+			font-weight: 700;
+			@media #{$lg,$xxs} {
+				font-size: 38px;
+			}
+		}
+	}
+}
+.bk-price-item {
+	padding: 40px;
+	border-radius: 24px;
+	background-color: #FFFFFF;
+	@media #{$lg,$xxs} {
+		padding: 30px 20px;
+	}
+	.item-title {
+		margin-bottom: 28px;
+		h3 {
+			font-size: 32px;
+			font-weight: 700;
+			padding-bottom: 15px;
+		}
+	}
+	.item-price {
+		display: flex;
+		align-items: end;
+		span {
+			top: -15px;
+			font-size: 16px;
+			margin-left: -35px;
+			position: relative;
+			@media #{$lg,$xxs} {
+				white-space: nowrap;
+			}
+			@media #{$xxs} {
+				top: 0
+			}
+		}
+		h3 {
+			display: flex;
+			gap: 0px 10px;
+			font-size: 80px;
+			font-weight: 700;
+			@media #{$xxs} {
+				font-size: 60px;
+			}
+			sup,sub {
+				top: 20px;
+				font-size: 32px;
+				font-weight: 700;
+			}
+		}
+	}
+	.item-btn {
+		a {
+			color: #fff;
+			width: 100%;
+			font-size: 16px;
+			font-weight: 500;
+			text-align: center;
+			padding: 14px 12px;
+			border-radius: 12px;
+			background-color: var(--bk-prime-c);
+			&:hover {
+				background-color: #004040;
+			}
+		}
+	}
+	.item-list {
+		padding: 25px 28px;
+		border-radius: 12px;
+		background-color: #F7F6F2;
+		li {
+			margin-bottom: 17px;
+			i {
+				margin-right: 10px;
+				color: var(--bk-prime-c);
+			}
+			&:last-child {
+				margin-bottom: 0;
+			}
+		}
+	}
+}

@@ -1,0 +1,145 @@
+.bk-ab2-content {
+	gap: 40px;
+	display: flex;
+	justify-content: space-between;
+	@media #{$lg,$md,$sm,$xs,$xxs} {
+		flex-wrap: wrap;
+	}
+}
+.bk-ab2-img1 {
+	max-width: 396px;
+	@media #{$lg,$md,$sm,$xs,$xxs} {
+		max-width: 100%;
+		width: 100%;
+	}
+	.item-img {
+		overflow: hidden;
+		border-radius: 12px;
+		margin-bottom: 24px;
+		@media #{$lg,$md,$sm,$xs,$xxs} {
+			max-height: 450px;
+		}	
+		img {
+			@media #{$lg,$md,$sm,$xs,$xxs} {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+		}
+	}
+	.item-count {
+		gap: 20px;
+		padding: 34px 40px;
+		border-radius: 12px;
+		background-color: #EFE5DC;
+		h3 {
+			line-height: 1;
+			color: #004040;
+			font-size: 66px;
+			font-weight: 700;
+			white-space: nowrap;
+		}
+		p {
+			line-height: 1;
+			font-size: 24px;
+			font-family: var(--bk-heading);
+		}
+	}
+}
+@keyframes bounceDown {
+	0%, 20%, 50%, 80%, 100% {
+		-webkit-transform: translateY(0);
+		transform: translateY(0);
+	}
+	40% {
+		-webkit-transform: translateY(10px);
+		transform: translateY(10px);
+	}
+	60% {
+		-webkit-transform: translateY(5px);
+		transform: translateY(5px);
+	}
+}
+.bk-ab2-text-wrap {
+	width: 100%;
+	max-width: 1056px;
+	.item-img-scroll {
+		.item-img {
+			overflow: hidden;
+			border-radius: 12px;
+			@media #{$sm,$xs,$xxs} {
+				height: 350px;
+			}
+			img {
+				transition: all 500ms ease-in-out;
+				@media #{$sm,$xs,$xxs} {
+					width: 100%;
+					height: 100%;
+					object-fit: cover;
+				}
+			}
+			&:hover {
+				img {
+					filter: grayscale(1);
+				}
+			}
+		}
+		.item-scroll {
+			top: -87px;
+			right: 140px;
+			z-index: 2;
+			width: 184px;
+			height: 184px;
+			position: absolute;
+			border-radius: 100%;
+			border: 10px solid #fff;
+			background-color: #004040;
+			animation: bounceDown 1.5s infinite;
+			@media #{$sm,$xs,$xxs} {
+				display: none !important;
+			}
+		}
+	} 
+}
+.bk-ab2-top {
+	gap: 20px;
+	@media #{$lg,$md,$sm,$xs,$xxs} {
+		flex-wrap: wrap;
+	}
+	@media #{$sm,$xs,$xxs} {
+		margin-bottom: 35px;
+	}
+	.bk-sec-title {
+		max-width: 505px;
+		.sec_title {
+			font-size: 40px;
+			@media #{$md} {
+				font-size: 38px;
+			}
+			@media #{$sm} {
+				font-size: 36px;
+			}
+			@media #{$xs} {
+				font-size: 34px;
+			}
+			@media #{$xxs} {
+				font-size: 30px;
+			}
+			@media #{$xxxs} {
+				font-size: 28px;
+			}
+			span {
+				opacity: .6;
+			}
+			span {
+				display: inline;
+			}
+		}
+	}
+	.item-desc {
+		opacity: .8;
+		margin-top: 5px;
+		max-width: 440px;
+	}
+}
+

@@ -1,0 +1,153 @@
+.bk-hero3-sec {
+	background-color: #fff;
+}
+.bk-hero3-content {
+	z-index: 1;
+	gap: 40px 30px;
+	padding-top: 90px;
+	position: relative;
+	@media #{$md,$sm,$xs,$xxs} {
+		flex-wrap: wrap;
+		flex-direction: column-reverse;
+	}
+	.bg_shape {
+		left: 0;
+		top: -2px;
+		z-index: -1;
+		width: 100%;
+		height: 70%;
+		content: '';
+		max-width: 636px;
+		position: absolute;
+		background-color: #F7F6F2;
+		@media #{$lg} {
+			height: 100%;
+			max-width: 500px;
+		}
+		@media #{$md,$sm,$xs,$xxs} {
+			display: none;
+		}
+	}
+}
+.bk-hero3-form {
+	z-index: 1;
+	width: 100%;
+	max-width: 636px;
+	padding: 120px 15px 15px  15px;
+	@media #{$lg} {
+		max-width: 500px;
+	}
+	@media #{$md,$sm,$xs,$xxs} {
+		max-width: 100%;
+		padding-top: 30px;
+	}
+	.form-wrapper {
+		margin: 0 auto;
+		max-width: 570px;
+		padding: 45px 48px;
+		background-color: #fff;
+		border: 10px solid #F7F6F2;
+		@media #{$md,$sm,$xs,$xxs} {
+			max-width: 100%;
+		}
+		@media #{$xxs} {
+			padding: 45px 15px;
+		}
+		h3 {
+			color: #004040;
+			font-size: 24px;
+			font-weight: 700;
+			margin-bottom: 40px;
+		}
+		.item-field {
+			width: 100%;
+			position: relative;
+			@media #{$xxs} {
+				width: 100%;
+			}
+			i {
+				top: 22px;
+				z-index: 1;
+				right: 22px;
+				position: absolute;
+				color: rgba(39, 39, 39, .8);
+			}
+			input,select {
+				width: 100%;
+				height: 62px;
+				border: none;
+				border: none;
+				outline: none;
+				appearance: none;
+				margin-bottom: 12px;
+				background: #F7F6F2; 
+				padding-left: 20px;
+				backdrop-filter: blur(20px);
+				color: rgba(39, 39, 39, .8);
+				@media #{$xxs} {
+					width: 100%;
+				}
+				&::placeholder {
+					color: rgba(39, 39, 39, .8);
+				}
+			}
+		}
+		button {
+			width: 100%;
+			color: #fff;
+			border: none;
+			height: 62px;
+			font-weight: 500;
+			margin-top: 28px;
+			background-color: #004040;
+			transition: all 300ms ease-in-out;
+			&:hover {
+				background-color: var(--bk-prime-c);
+			}
+		}
+	}
+}
+
+.bk-hero3-text {
+	max-width: 768px;
+	.bk-hero-text {
+		padding-top: 125px;
+
+		.hero_title {
+			font-size: 60px;
+			font-weight: 700;
+			line-height: 1.15;
+			padding-top: 24px;
+			padding-bottom: 40px;
+			@media #{$xl} {
+				font-size: 50px;
+			}
+			@media #{$lg} {
+				font-size: 45px;
+			}
+			@media #{$sm} {
+				font-size: 42px;
+			}
+			@media #{$xs} {
+				font-size: 40px;
+			}
+			@media #{$xxs} {
+				font-size: 38px;
+				padding-bottom: 25px;
+			}
+			@media #{$xxxs} {
+				font-size: 36px;
+			}
+		}
+	}
+}
+
+.bk-hr3-img {
+	margin-top: -238px;
+	@media #{$lg,$md,$sm,$xs,$xxs} {
+		margin-top: 40px;
+	}
+	@media #{$md,$sm,$xs,$xxs} {
+		height: 400px;
+	}
+}

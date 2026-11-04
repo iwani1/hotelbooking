@@ -1,0 +1,135 @@
+.bk-blog3-sec {
+	background-color: #fff;
+}
+.bk-blog3-top {
+	gap: 30px;
+	@media #{$sm,$xs,$xxs} {
+		flex-wrap: wrap;
+	}
+	.top-title {
+		h2 {
+			line-height: .9;
+			max-width: 630px;
+			font-size: 140px;
+			font-weight: 600;
+			letter-spacing: -3px;
+			@media #{$md} {
+				font-size: 100px;
+			}
+			@media #{$sm} {
+				font-size: 70px;
+			}
+			@media #{$xs} {
+				font-size: 55px;
+			}
+			@media #{$xxs} {
+				font-size: 45px;
+			}
+		}
+	}
+	p {
+		max-width: 372px;
+	}
+}
+
+.bk-blog3-label {
+	padding-top: 30px;
+	border-top: 1px solid #EFE5DC;
+	a {
+		color: #004040;
+		font-weight: 600;
+		font-family: var(--bk-heading);
+		&:last-child {
+			text-transform: uppercase;
+			text-decoration: underline;
+		}
+	}
+}
+
+.bk-blog3-text {
+	width: 100%;
+	max-width: 504px;
+	@media #{$xl,$lg} {
+		max-width: 350px;
+	}
+	@media #{$md,$sm,$xs,$xxs} {
+		max-width: 100%;
+	}
+	h3 {
+		font-weight: 600;
+		font-size: 44px;
+		max-width: 400px;
+		line-height: 1.2;
+		margin-bottom: 35px;
+		@media #{$md,$sm,$xs,$xxs} {
+			max-width: 100%;
+		}
+		@media #{$xxs} {
+			font-size: 36px;
+		}
+
+	}
+}
+.bk-blog3-content {
+	display: flex;
+	gap: 30px;
+	@media #{$md,$sm,$xs,$xxs} {
+		flex-wrap: wrap;
+	}
+}
+.bk-blog3-item-feed {
+	gap: 24px;
+	display: grid;
+	max-width: 1032px;
+	grid-template-columns: 1fr 1fr;
+	@media #{$xs,$xxs} {
+		grid-template-columns: 1fr;
+	}
+}
+
+.bk-blog3-item {
+	.item-img {
+		height: 360px;
+		overflow: hidden;
+		margin-bottom: 20px;
+		border-radius: 12px;
+		img {
+			transition: all 500ms ease-in-out;
+		}
+	}
+	.item-text {
+		span {
+			opacity: .8;
+			font-size: 16px;
+			padding-bottom: 12px;
+		}
+		.blg_title {
+			font-size: 30px;
+			font-weight: 700;
+			margin-bottom: 18px;
+			@media #{$lg} {
+				font-size: 24px;
+			}
+			&:hover {
+				color: var(--bk-prime-c);
+			}
+		}
+		.blog_more {
+			color: #000000;
+			font-size: 18px;
+			font-weight: 700;
+			font-family: var(--bk-heading);
+			&:hover {
+				color: #004040;
+				letter-spacing: 1px;
+			}
+		}
+	}
+	&:hover {
+		.item-img {
+			img {
+				transform: scale(1.1);
+			}
+		}
+	}
+}

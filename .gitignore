@@ -9,3 +9,7 @@ Thumbs.db
 # Installer temp files
 .wp-cli.phar
 .bookora-extract/
+
+# Local development runtime data and secrets
+/wp-content/
+/.env

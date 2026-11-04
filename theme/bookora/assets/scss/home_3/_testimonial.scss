@@ -1,0 +1,71 @@
+.bk-testi3-sec {
+	background-color: #fff;
+}
+.bk-testi3-marque {
+	display: flow-root;
+}
+.bk-testi3-content {
+	position: relative;
+	&:before,
+	&:after {
+		top: 0;
+		left: 0;
+		z-index: 1;
+		width: 29%;
+		content: '';
+		height: 100%;
+		position: absolute;
+		background: linear-gradient(270deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.2) 24.59%, rgba(255, 255, 255, 0.8) 50.39%, #FFFFFF 74.95%, #FFFFFF 100%);
+		@media #{$md,$sm,$xs,$xxs} {
+			display: none;
+		}
+	}
+	&:after {
+		right: 0;
+		left: auto;
+		transform: rotate(180deg);
+	}
+}
+.bk-testi3-item {
+	width: 100%;
+	margin: 12px;
+	padding: 36px;
+	max-width: 504px;
+	border-radius: 16px;
+	display: inline-block;
+	background-color: #F7F6F2;
+	.item-top {
+		margin-bottom: 34px;
+		li {
+			font-size: 17px;
+			color: var(--bk-prime-c);
+		}
+		a {
+			color: #000000;
+			font-size: 22px;
+		}
+	}
+	.item-text {
+		padding-bottom: 34px;
+	}
+	.item-author {
+		gap: 12px;
+		.auth-img {
+			width: 60px;
+			height: 60px;
+			overflow: hidden;
+			border-radius: 100%;
+		}
+		.auth-text {
+			h3 {
+				color: #000000;
+				font-size: 24px;
+				font-weight: 700;
+			}
+			span {
+				opacity: .8;
+				font-size: 16px;
+			}
+		}
+	}
+}
