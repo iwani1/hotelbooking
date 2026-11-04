@@ -11,6 +11,8 @@ This repository contains the Bookora WordPress theme and companion plugin. **It 
 
 ## Local setup
 
+For a guided Podman setup, run `bash scripts/run-podman.sh`. It generates local database passwords, prompts for an administrator password, and selects the latest available plugin versions unless version variables are already set. Those versions still need compatibility and security review. On macOS or Windows, start the Podman machine first.
+
 Requirements: Docker Compose or Podman Compose, Bash, curl, `sha256sum`, internet access to GitHub and wordpress.org. The example pins image tags and the installer pins and verifies WP-CLI; choose and export explicitly tested plugin versions as shown below. Version tags are not immutable image digests. Review and update all versions for security and compatibility before use; these particular combinations have not been integration-tested in this environment.
 
 1. Copy `.env.example` to `.env` and set **different, long, random** `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD` values. `.env` and runtime `wp-content/` are Git-ignored. Use a fresh volume or the existing database's original credentials; changing `.env` does not update passwords in an already-initialized MySQL volume.
