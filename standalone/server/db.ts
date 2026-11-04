@@ -43,6 +43,7 @@ export async function migrate(db: Database) {
     rate_pesewas INTEGER NOT NULL, total_pesewas BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (check_in < check_out), CHECK (guests > 0)
   )`);
+  await db.query("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'reception'");
   await db.query('CREATE INDEX IF NOT EXISTS reservation_availability ON reservations (room_id, check_in, check_out)');
   await db.query(`CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, expires_at TIMESTAMPTZ NOT NULL)`);
 }

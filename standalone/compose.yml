@@ -19,6 +19,7 @@ services:
     environment:
       DATABASE_URL: postgres://bookora:${POSTGRES_PASSWORD}@database:5432/bookora
       BOOKORA_ADMIN_PASSWORD: ${BOOKORA_ADMIN_PASSWORD:?Set BOOKORA_ADMIN_PASSWORD in .env}
+      BOOKORA_DEMO: ${BOOKORA_DEMO:-0}
       PORT: '3001'
     depends_on:
       database:

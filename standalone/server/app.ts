@@ -25,6 +25,37 @@ export function createApp(db: Database, options: Options) {
     if (!['GET', 'HEAD'].includes(req.method) && req.get('x-bookora-request') !== '1') return res.status(403).json({ error: 'Invalid request.' });
     next();
   });
+  function validateDates(checkIn: string, checkOut: string): number {
+    const start = dateNumber(checkIn), end = dateNumber(checkOut);
+    const today = options.today ? options.today() : new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Accra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    if (start === null || end === null || checkIn < today || end <= start || (end - start) / 86400000 > 365) throw new Problem(400, 'Choose valid dates: check-in cannot be in the past and stays must be 1–365 nights.');
+    return (end - start) / 86400000;
+  }
+  async function createReservation(body: unknown, source: 'reception' | 'guest') {
+    const parsed = bookingSchema.safeParse(body);
+    if (!parsed.success) throw new Problem(400, 'Please check the reservation details.');
+    const b = parsed.data, nights = validateDates(b.checkIn, b.checkOut);
+    if (source === 'guest' && !b.email) throw new Problem(400, 'Please provide an email address.');
+    return db.transaction(async tx => {
+      // Guest and staff requests use this same room lock and availability check.
+      const room = (await tx.query('SELECT * FROM rooms WHERE id = $1 FOR UPDATE', [b.roomId])).rows[0];
+      if (!room || b.guests > room.capacity) throw new Problem(400, 'Room not found or guest count exceeds capacity.');
+      const overlap = await tx.query("SELECT id FROM reservations WHERE room_id=$1 AND status <> 'cancelled' AND check_in < $3::date AND check_out > $2::date LIMIT 1", [b.roomId, b.checkIn, b.checkOut]);
+      if (overlap.rows.length) throw new Problem(409, 'This room is already reserved for those dates.');
+      return (await tx.query(`INSERT INTO reservations (room_id,guest_name,guest_email,guest_phone,guests,check_in,check_out,rate_pesewas,total_pesewas,source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, total_pesewas::text`, [b.roomId,b.guestName,b.email,b.phone,b.guests,b.checkIn,b.checkOut,room.rate_pesewas,room.rate_pesewas*nights,source])).rows[0];
+    });
+  }
+  // The public flow is deliberately demo-only until payment, abuse prevention,
+  // privacy, and real database concurrency have been reviewed and tested.
+  app.use('/api/public', (_req, _res, next) => { if (!options.demo) return next(new Problem(404, 'Guest booking demo is not enabled.')); next(); });
+  app.get('/api/public/availability', async (req, res) => {
+    const parsed = z.object({ checkIn: z.string(), checkOut: z.string(), guests: z.string().regex(/^(?:[1-9]|1[0-9]|20)$/) }).safeParse(req.query);
+    if (!parsed.success) throw new Problem(400, 'Choose dates and a guest count.');
+    const {checkIn, checkOut, guests} = parsed.data, nights = validateDates(checkIn, checkOut);
+    const result = await db.query(`SELECT r.id, r.room_type, r.capacity, r.rate_pesewas FROM rooms r WHERE r.capacity >= $1 AND NOT EXISTS (SELECT 1 FROM reservations b WHERE b.room_id=r.id AND b.status <> 'cancelled' AND b.check_in < $3::date AND b.check_out > $2::date) ORDER BY r.rate_pesewas, r.id LIMIT 100`, [Number(guests), checkIn, checkOut]);
+    res.json({ nights, rooms: result.rows });
+  });
+  app.post('/api/public/reservations', async (req, res) => { res.status(201).json(await createReservation(req.body, 'guest')); });
   // Basic in-process login throttle is a prototype safeguard, not a distributed rate limiter.
   const attempts = new Map<string, { count: number; until: number }>();
   app.post('/api/login', async (req, res) => {
@@ -61,25 +92,10 @@ export function createApp(db: Database, options: Options) {
     catch (e: any) { if (e.code === '23505') throw new Problem(409, 'A room with this number already exists.'); throw e; }
   });
   app.get('/api/reservations', async (_req, res) => {
-    const result = await db.query(`SELECT b.id, b.room_id, b.guest_name, b.guest_email, b.guest_phone, b.guests, b.check_in::text, b.check_out::text, b.status, b.rate_pesewas, b.total_pesewas::text, b.created_at, r.room_number, r.room_type FROM reservations b JOIN rooms r ON r.id=b.room_id ORDER BY b.created_at DESC, b.id DESC LIMIT 200`);
+    const result = await db.query(`SELECT b.id, b.room_id, b.guest_name, b.guest_email, b.guest_phone, b.guests, b.check_in::text, b.check_out::text, b.status, b.rate_pesewas, b.total_pesewas::text, b.source, b.created_at, r.room_number, r.room_type FROM reservations b JOIN rooms r ON r.id=b.room_id ORDER BY b.created_at DESC, b.id DESC LIMIT 200`);
     res.json(result.rows);
   });
-  app.post('/api/reservations', async (req, res) => {
-    const parsed = bookingSchema.safeParse(req.body); if (!parsed.success) throw new Problem(400, 'Please check the reservation details.');
-    const b = parsed.data, start = dateNumber(b.checkIn), end = dateNumber(b.checkOut);
-    const today = options.today ? options.today() : new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Accra', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    if (start === null || end === null || b.checkIn < today || end <= start || (end - start) / 86400000 > 365) throw new Problem(400, 'Choose valid dates: check-in cannot be in the past and stays must be 1–365 nights.');
-    const nights = (end - start) / 86400000;
-    const row = await db.transaction(async tx => {
-      // All writers in this application lock the physical room before testing availability.
-      const room = (await tx.query('SELECT * FROM rooms WHERE id = $1 FOR UPDATE', [b.roomId])).rows[0];
-      if (!room || b.guests > room.capacity) throw new Problem(400, 'Room not found or guest count exceeds capacity.');
-      const overlap = await tx.query("SELECT id FROM reservations WHERE room_id=$1 AND status <> 'cancelled' AND check_in < $3::date AND check_out > $2::date LIMIT 1", [b.roomId, b.checkIn, b.checkOut]);
-      if (overlap.rows.length) throw new Problem(409, 'This room is already reserved for those dates.');
-      return (await tx.query(`INSERT INTO reservations (room_id,guest_name,guest_email,guest_phone,guests,check_in,check_out,rate_pesewas,total_pesewas) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, [b.roomId,b.guestName,b.email,b.phone,b.guests,b.checkIn,b.checkOut,room.rate_pesewas,room.rate_pesewas*nights])).rows[0];
-    });
-    res.status(201).json(row);
-  });
+  app.post('/api/reservations', async (req, res) => { res.status(201).json(await createReservation(req.body, 'reception')); });
   app.post('/api/reservations/:id/status', async (req, res) => {
     const id = Number(req.params.id), transitions: Record<string, string[]> = { check_in: ['confirmed', 'checked_in'], check_out: ['checked_in', 'checked_out'], cancel: ['confirmed', 'cancelled'] };
     const transition = transitions[req.body?.action];
