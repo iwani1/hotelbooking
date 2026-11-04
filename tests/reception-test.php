@@ -10,7 +10,8 @@ function current_time($type, $gmt = false) { return $type === 'Y-m-d' ? '2030-01
 function check($condition, $message) { if (!$condition) throw new Exception($message); }
 $GLOBALS['allow_reception'] = false;
 $GLOBALS['nonce_valid'] = false;
-function current_user_can($cap) { return $cap === 'manage_bookora_reception' && $GLOBALS['allow_reception']; }
+$GLOBALS['allow_admin'] = false;
+function current_user_can($cap) { return ($cap === 'manage_bookora_reception' && $GLOBALS['allow_reception']) || ($cap === 'manage_options' && $GLOBALS['allow_admin']); }
 function wp_die(...$args) { throw new Exception('denied'); }
 function check_admin_referer($action) { if (!$GLOBALS['nonce_valid']) throw new Exception('nonce'); }
 function sanitize_text_field($s) { return trim(strip_tags($s)); }
@@ -23,7 +24,7 @@ function wp_safe_redirect($url) { throw new Exception('redirect:' . $url); }
 class Fake_Wpdb {
     public $prefix = 'wp_';
     public $reservations = array();
-    public $rooms = array(1 => array('id' => 1, 'capacity' => 2));
+    public $rooms = array(1 => array('id' => 1, 'capacity' => 2, 'nightly_rate_pesewas' => 12050));
     public $locked = false;
     public $busy = false;
     public $db_error = false;
@@ -70,6 +71,13 @@ class Fake_Wpdb {
     }
     public function update($table, $data, $where, $formats, $where_formats) {
         $id = $where['id'];
+        if (strpos($table, 'bookora_rooms') !== false) {
+            check($this->locked, 'Rate update must be inside the lock');
+            if ($this->db_error) return false;
+            if (!isset($this->rooms[$id])) return 0;
+            $this->rooms[$id]['nightly_rate_pesewas'] = $data['nightly_rate_pesewas'];
+            return 1;
+        }
         if (!isset($this->reservations[$id]) || $this->reservations[$id]['status'] !== $where['status']) return 0;
         $this->reservations[$id]['status'] = $data['status'];
         return 1;
@@ -80,9 +88,17 @@ require __DIR__ . '/../plugin/bookora-reception/bookora-reception.php';
 function book($start, $end, $guests = 1, $email = '') {
     return Bookora_Reception::create_reservation(1, 'Test Guest', $email, '0201234567', $guests, $start, $end, 2);
 }
+foreach (array('0.01' => 1, '120.5' => 12050, '1000000' => 100000000) as $input => $expected) check(Bookora_Reception::parse_ghs((string) $input) === $expected, 'Decimal parsing');
+foreach (array('', '0', '-1', '1.001', '1e3', '1000000.01', '1,000') as $input) check(Bookora_Reception::parse_ghs($input) === null, 'Invalid rate rejected');
 check(book('2030-01-02', '2030-01-04') === 'booked', 'First booking');
+check($wpdb->reservations[1]['nightly_rate_pesewas'] === 12050 && $wpdb->reservations[1]['total_pesewas'] === 24100, 'Integer price snapshot');
+check(Bookora_Reception::set_room_rate(1, 15000) === 'rate_updated' && !$wpdb->locked, 'Rate updated under lock');
+check($wpdb->reservations[1]['total_pesewas'] === 24100, 'Existing booking price is immutable');
+check(Bookora_Reception::set_room_rate(999, 100) === 'rate_invalid' && !$wpdb->locked, 'Missing room releases lock');
+check(book('2030-01-06', '2031-01-07') === 'invalid', 'Stay maximum enforced');
 check(book('2030-01-03', '2030-01-05') === 'unavailable', 'Overlapping dates are rejected');
 check(book('2030-01-04', '2030-01-05') === 'booked', 'Checkout day is available');
+check($wpdb->reservations[2]['nightly_rate_pesewas'] === 15000 && $wpdb->reservations[2]['total_pesewas'] === 15000, 'Later booking uses new rate');
 check(book('2030-02-30', '2030-03-02') === 'invalid', 'Invalid date rejected');
 check(book('2029-12-31', '2030-01-02') === 'invalid', 'Past check-in rejected');
 check(book('2030-01-06', '2030-01-06') === 'invalid', 'Empty stay rejected');
@@ -98,9 +114,15 @@ check(book('2030-01-04', '2030-01-05') === 'booked', 'Cancelled room becomes ava
 $wpdb->busy = true;
 $releases = $wpdb->releases;
 check(book('2030-01-10', '2030-01-11') === 'busy' && $wpdb->releases === $releases, 'Lock contention rejects booking');
+check(Bookora_Reception::set_room_rate(1, 100) === 'busy', 'Rate update respects lock contention');
 $wpdb->busy = false; $wpdb->db_error = true;
+check(Bookora_Reception::set_room_rate(1, 100) === 'db_error' && !$wpdb->locked, 'Rate database errors release lock');
 check(book('2030-01-10', '2030-01-11') === 'db_error' && !$wpdb->locked, 'Database failures release lock');
 check(Bookora_Reception::update_status(999, 'cancel') === 'bad_status', 'Missing reservation rejected');
+$wpdb->db_error = false;
+$wpdb->rooms[1]['nightly_rate_pesewas'] = 0;
+check(book('2030-02-01', '2030-02-02') === 'booked', 'Legacy unpriced room remains bookable');
+check(end($wpdb->reservations)['total_pesewas'] === null && end($wpdb->reservations)['nightly_rate_pesewas'] === null, 'Unpriced snapshot is null');
 // The actual admin-post handler must reject unauthorized and missing-nonce requests.
 $wpdb->db_error = false;
 $_POST = array('room_id' => '1', 'guest_name' => '<b>Guest</b>', 'guest_email' => '', 'guest_phone' => '', 'guests' => '1', 'check_in' => '2030-01-10', 'check_out' => '2030-01-11');
@@ -111,6 +133,15 @@ $GLOBALS['allow_reception'] = true;
 try { Bookora_Reception::handle_booking(); throw new Exception('Expected nonce failure'); } catch (Exception $e) { check($e->getMessage() === 'nonce', 'Nonce required'); }
 check(count($wpdb->reservations) === $before, 'Invalid nonce cannot create a booking');
 $GLOBALS['nonce_valid'] = true;
+$_POST['nightly_rate'] = '25.00';
+try { Bookora_Reception::handle_rate(); throw new Exception('Expected permission failure'); } catch (Exception $e) { check($e->getMessage() === 'denied', 'Receptionist cannot change rate'); }
+try { Bookora_Reception::handle_add_room(); throw new Exception('Expected permission failure'); } catch (Exception $e) { check($e->getMessage() === 'denied', 'Receptionist cannot add rooms'); }
+$GLOBALS['allow_admin'] = true;
+$GLOBALS['nonce_valid'] = false;
+try { Bookora_Reception::handle_rate(); throw new Exception('Expected nonce failure'); } catch (Exception $e) { check($e->getMessage() === 'nonce', 'Rate requires nonce'); }
+$GLOBALS['nonce_valid'] = true;
+try { Bookora_Reception::handle_rate(); throw new Exception('Expected redirect'); } catch (Exception $e) { check(strpos($e->getMessage(), 'redirect:') === 0, 'Admin rate change redirects'); }
+check($wpdb->rooms[1]['nightly_rate_pesewas'] === 2500, 'Admin rate stored');
 try { Bookora_Reception::handle_booking(); throw new Exception('Expected redirect'); } catch (Exception $e) { check(strpos($e->getMessage(), 'redirect:') === 0, 'Successful request redirects'); }
 check(count($wpdb->reservations) === $before + 1 && end($wpdb->reservations)['guest_name'] === 'Guest', 'Authorized request stores sanitized name');
 echo "Reception service and authorization tests passed.\n";

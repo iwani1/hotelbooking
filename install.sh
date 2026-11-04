@@ -89,8 +89,8 @@ fi
 install_code() {
     local source="$1" destination="$2" name="$3"
     if "${RUNTIME[@]}" exec "$WEB_ID" test -d "$destination/$name"; then
-        if [ "${BOOKORA_REPLACE:-0}" != 1 ]; then
-            echo "$name already exists; preserving it (set BOOKORA_REPLACE=1 after backing up to replace)."
+        if [ "${BOOKORA_REPLACE:-0}" != 1 ] && ! { [ "$name" = bookora-reception ] && [ "${BOOKORA_REPLACE_RECEPTION:-0}" = 1 ]; }; then
+            echo "$name already exists; preserving it. Back up before requesting replacement."
             return
         fi
         echo "Replacing $destination/$name; ensure you have backed up local modifications."

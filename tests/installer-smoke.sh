@@ -50,7 +50,7 @@ if [ "$1" = inspect ]; then
   esac
 fi
 if [ "$1" = port ]; then echo '127.0.0.1:8081'; fi
-if [ "$1" = exec ] && [ "${3:-}" = test ] && [ "${5:-}" = /var/www/html/wp-content/plugins/bookora-reception ]; then exit 1; fi
+if [ "$1" = exec ] && [ "${3:-}" = test ] && [ "${5:-}" = /var/www/html/wp-content/plugins/bookora-reception ] && [ "${MOCK_EXISTING_RECEPTION:-0}" != 1 ]; then exit 1; fi
 if [ "$1" = exec ] && [ "${3:-}" = mktemp ]; then echo /tmp/bookora-test; fi
 exit 0
 MOCK
@@ -89,4 +89,17 @@ rm -f "$MOCK_STATE-bookora-plugin" "$MOCK_STATE-bookora-reception"
 PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman MOCK_FRESH=1 WP_ADMIN_PASSWORD='test-password-123' bash "$ROOT/install.sh" > "$TMP/output"
 grep -q 'core install --url=http://localhost:8081' "$MOCK_LOG"
 grep -q 'Open http://localhost:8081' "$TMP/output"
+# Targeted replacement must not replace the existing theme or companion plugin.
+: > "$MOCK_LOG"
+PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman MOCK_EXISTING_RECEPTION=1 BOOKORA_REPLACE_RECEPTION=1 bash "$ROOT/install.sh" >/dev/null
+grep -q 'cp .*plugin/bookora-reception web-id:/tmp/bookora-test/bookora-reception' "$MOCK_LOG"
+if grep -Eq 'cp .*/(theme/bookora|plugin/bookora-plugin) web-id:' "$MOCK_LOG"; then
+  echo 'Targeted replacement unexpectedly copied theme or companion plugin' >&2; exit 1
+fi
+# Existing reception plugin is preserved without an explicit switch.
+: > "$MOCK_LOG"
+PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman MOCK_EXISTING_RECEPTION=1 bash "$ROOT/install.sh" >/dev/null
+if grep -q 'cp .*plugin/bookora-reception web-id:' "$MOCK_LOG"; then
+  echo 'Existing reception plugin was unexpectedly replaced' >&2; exit 1
+fi
 echo 'Installer mock smoke test passed (Docker, Podman, and a non-default port).'
