@@ -24,7 +24,7 @@ Requirements: Docker Compose or Podman Compose, Bash, curl, `sha256sum`, interne
    export WP_CONTACT_FORM_7_VERSION='<tested-version>'
    export WP_OCDI_VERSION='<tested-version>'
    export WP_MAILCHIMP_VERSION='<tested-version>'
-   bash install.sh
+   bash install.sh  # For Podman when Docker is also installed: BOOKORA_RUNTIME=podman bash install.sh
    unset WP_ADMIN_PASSWORD
    ```
 

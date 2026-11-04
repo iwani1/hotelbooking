@@ -5,18 +5,29 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
+select_podman() {
+    if ! command -v podman >/dev/null; then return 1; fi
+    if podman compose version >/dev/null 2>&1; then
+        COMPOSE=(podman compose); RUNTIME=(podman)
+    elif command -v podman-compose >/dev/null; then
+        COMPOSE=(podman-compose); RUNTIME=(podman)
+    else
+        return 1
+    fi
+}
+select_docker() {
+    command -v docker >/dev/null && docker compose version >/dev/null 2>&1 || return 1
     COMPOSE=(docker compose); RUNTIME=(docker)
-elif command -v podman >/dev/null && podman compose version >/dev/null 2>&1; then
-    COMPOSE=(podman compose); RUNTIME=(podman)
-elif command -v podman-compose >/dev/null && command -v podman >/dev/null; then
-    COMPOSE=(podman-compose); RUNTIME=(podman)
-else
-    echo 'Docker Compose or Podman Compose is required.' >&2; exit 1
-fi
+}
+case "${BOOKORA_RUNTIME:-auto}" in
+    podman) select_podman || { echo 'Podman and a Compose provider are required.' >&2; exit 1; } ;;
+    docker) select_docker || { echo 'Docker Compose is required.' >&2; exit 1; } ;;
+    auto) select_docker || select_podman || { echo 'Docker Compose or Podman Compose is required.' >&2; exit 1; } ;;
+    *) echo 'BOOKORA_RUNTIME must be auto, podman, or docker.' >&2; exit 1 ;;
+esac
 
 WEB_ID="$("${COMPOSE[@]}" ps -q web)"
-[ -n "$WEB_ID" ] || { echo 'Start the stack first: docker compose up -d' >&2; exit 1; }
+[ -n "$WEB_ID" ] || { echo 'Start the stack first with your chosen Compose provider.' >&2; exit 1; }
 "${RUNTIME[@]}" inspect "$WEB_ID" >/dev/null
 
 # A release version and digest are deliberately pinned. Update both together

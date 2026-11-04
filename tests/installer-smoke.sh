@@ -10,7 +10,7 @@ export MOCK_LOG="$TMP/log" MOCK_STATE="$TMP/state"
 cat > "$TMP/bin/docker" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "$MOCK_LOG"
+printf '%s %s\n' "$(basename "$0")" "$*" >> "$MOCK_LOG"
 if [ "$1" = compose ]; then
   shift
   case "$1" in
@@ -55,4 +55,13 @@ grep -q 'theme activate bookora' "$MOCK_LOG"
 if grep -Eq 'mysql .*UPDATE|rm -rf /var/www/html/wp-content' "$MOCK_LOG"; then
   echo 'Unexpected destructive fallback' >&2; exit 1
 fi
-echo 'Installer mock smoke test passed.'
+# With both CLIs on PATH, an explicit Podman selection must not invoke Docker.
+cp "$TMP/bin/docker" "$TMP/bin/podman"
+: > "$MOCK_LOG"
+rm -f "$MOCK_STATE"
+PATH="$TMP/bin:$PATH" BOOKORA_RUNTIME=podman bash "$ROOT/install.sh" >/dev/null
+grep -q '^podman compose ' "$MOCK_LOG"
+if grep -q '^docker ' "$MOCK_LOG"; then
+  echo 'Explicit Podman selection unexpectedly invoked Docker' >&2; exit 1
+fi
+echo 'Installer mock smoke test passed (Docker and explicit Podman).'
